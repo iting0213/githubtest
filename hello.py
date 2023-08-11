@@ -6,8 +6,8 @@ import plotly.express as px
 import plotly.figure_factory as ff
 
 # Read excel sheets
-df1 = pd.read_excel('OR110-1_case01.xlsx','Instance 1')
-df2 = pd.read_excel('OR110-1_case01.xlsx','Instance 1', header = 1)
+df1 = pd.read_excel('case01.xlsx','Instance 1')
+df2 = pd.read_excel('case01.xlsx','Instance 1', header = 1)
 df1 = df1.fillna(0)
 df2 = df2.fillna(0)
 
