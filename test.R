@@ -1,3 +1,132 @@
+### Data Part
+
+## Weather
+
+library(rjson)
+result <- fromJSON(file = "weather.json")
+locations = result[["cwbdata"]][["resources"]][["resource"]][["data"]][["surfaceObs"]][["location"]]
+
+# check data
+for (i in 1:length(locations)){
+  print(locations[[i]][["station"]]["StationName"])
+} # taipei: 5
+
+# extract taipei data
+taipei = locations[[5]]
+taipei_data = taipei[["stationObsTimes"]][["stationObsTime"]]
+
+# check taipei data
+taipei_data[[1]][["DataTime"]]
+taipei_data[[1]][["weatherElements"]]
+
+# fill null
+for (i in 1:length(taipei_data)){
+  if (is.null(taipei_data[[i]]$weatherElements$SunshineDuration)){
+    taipei_data[[i]]$weatherElements$SunshineDuration = ""}
+}
+
+# to dataframe
+col_num = length(unlist(taipei_data[[1]]))
+df_weather = as.data.frame(matrix(unlist(taipei_data), byrow = T, ncol = col_num))
+names(df_weather) = names(unlist(taipei_data)[1:col_num])
+
+df_weather$DataTime = substr(gsub("T", " ", df_weather$DataTime), 1, 19)
+df_weather$DataTime = as.POSIXct(df_weather$DataTime, format="%Y-%m-%d %H:%M:%S")
+
+df_weather$weatherElements.Precipitation[df_weather$weatherElements.Precipitation == "T"] = 0.1
+df_weather$weatherElements.SunshineDuration[df_weather$weatherElements.SunshineDuration == ""] = 0.0
+df_weather$weatherElements.SunshineDuration = as.double(df_weather$weatherElements.SunshineDuration)
+
+head(df_weather, 50)
+nrow(df_weather)
+
+## Bike for training
+
+raw = read.csv("Bike.csv")
+head(raw)
+
+rent_data = raw[raw$rent_station == "捷運公館站(2號出口)" | raw$rent_station == "捷運公館站(3號出口)",]
+head(rent_data)
+
+return_data = raw[raw$return_station == "捷運公館站(2號出口)" | raw$return_station == "捷運公館站(3號出口)",]
+head(return_data)
+
+rent_data$DataTime = as.POSIXct(rent_data$rent_time, format="%Y-%m-%d %H:%M:%S")
+return_data$DataTime = as.POSIXct(return_data$return_time, format="%Y-%m-%d %H:%M:%S")
+
+rent_num = aggregate(rent_data$rent_station, list(rent_data$DataTime), function(x) length(x))
+colnames(rent_num) = c("DataTime", "Rent")
+head(rent_num)
+
+return_num = aggregate(return_data$return_station, list(return_data$DataTime), function(x) length(x))
+colnames(return_num) = c("DataTime", "Return")
+head(return_num)
+
+df_bike = merge(rent_num, return_num, by = "DataTime", all = T)
+df_bike[is.na(df_bike)] = 0
+
+head(df_bike, 10)
+nrow(df_bike)
+
+## Bike for testing
+
+raw = read.csv("Bike2.csv")
+head(raw)
+
+rent_data = raw[raw$rent_station == "捷運公館站(2號出口)" | raw$rent_station == "捷運公館站(3號出口)",]
+head(rent_data)
+
+return_data = raw[raw$return_station == "捷運公館站(2號出口)" | raw$return_station == "捷運公館站(3號出口)",]
+head(return_data)
+
+rent_data$DataTime = as.POSIXct(rent_data$rent_time, format="%Y-%m-%d %H:%M:%S")
+return_data$DataTime = as.POSIXct(return_data$return_time, format="%Y-%m-%d %H:%M:%S")
+
+rent_num = aggregate(rent_data$rent_station, list(rent_data$DataTime), function(x) length(x))
+colnames(rent_num) = c("DataTime", "Rent")
+head(rent_num)
+
+return_num = aggregate(return_data$return_station, list(return_data$DataTime), function(x) length(x))
+colnames(return_num) = c("DataTime", "Return")
+head(return_num)
+
+df_bike2 = merge(rent_num, return_num, by = "DataTime", all = T)
+df_bike2[is.na(df_bike2)] = 0
+
+head(df_bike2, 10)
+nrow(df_bike2)
+
+## merge for training
+
+df = merge(df_weather, df_bike, by = "DataTime")
+head(df)
+
+df$Sufficient = 0
+df$Sufficient[df$Rent < df$Return] = 1
+df[is.na(df)] = 0
+
+df = df[,c(1,9,10,11,2,3,4,5,7,8)]
+colnames(df) = c("DataTime", "Rent", "Return", "Sufficient", "AirPressure", "AirTemperature", "RelativeHumidity", "WindSpeed", "Precipitation", "SunshineDuration")
+head(df)
+
+#write.csv(df, "data.csv", row.names = F)
+
+## merge for testing
+
+df2 = merge(df_weather, df_bike2, by = "DataTime")
+head(df2)
+
+df2$Sufficient = 0
+df2$Sufficient[df2$Rent < df2$Return] = 1
+df2[is.na(df2)] = 0
+
+df2 = df2[,c(1,9,10,11,2,3,4,5,7,8)]
+colnames(df2) = c("DataTime", "Rent", "Return", "Sufficient", "AirPressure", "AirTemperature", "RelativeHumidity", "WindSpeed", "Precipitation", "SunshineDuration")
+head(df2)
+
+#write.csv(df2, "data2.csv", row.names = F)
+
+
 ### Modeling Part
 
 ## read data for training
